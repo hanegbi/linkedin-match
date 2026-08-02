@@ -8,11 +8,10 @@ job is scored against your CV by Claude.
 Everything runs on your own machine. Nothing is sent to a third party, and no
 API key is needed.
 
-Here is what the report looks like. The names shown are made up, everything
-else (companies, roles, fit scores) is real data from an actual run. You can
-open [docs/demo-report.html](docs/demo-report.html) yourself to click around it.
+Here is what the report looks like.
 
-![Example of the generated report](docs/demo-screenshot.png)
+<img src="docs/demo-screenshot.png" alt="Example of the generated report" width="700">
+
 
 ## Step 1: Get your LinkedIn connections file
 
