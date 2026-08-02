@@ -13,14 +13,12 @@ API key is needed.
 The skill needs a file called `Connections.csv`, which LinkedIn will generate
 for you. Here's how to get it:
 
-1. Go to linkedin.com and log in.
-2. Click your profile picture in the top right, then choose "Settings & Privacy".
-3. Open the "Data privacy" tab.
-4. Click "Get a copy of your data".
-5. Choose "Want something in particular? Select the data files you're most interested in", then check just "Connections". This makes LinkedIn prepare it in a few minutes instead of up to a day.
-6. Click "Request archive". LinkedIn will confirm your password and start preparing the file.
-7. Wait for the email from LinkedIn (usually a few minutes), then come back to the same page and download the file.
-8. Unzip it. Inside you'll find `Connections.csv`. Keep it somewhere you'll remember, like a new folder for your job search.
+1. Log in to [linkedin.com](https://www.linkedin.com).
+2. Go directly to the [Get a copy of your data](https://www.linkedin.com/mypreferences/d/download-my-data) page. If that link does not work for you, click your profile picture in the top right, choose "Settings & Privacy", open the "Data privacy" tab, then click "Get a copy of your data".
+3. Choose "Want something in particular? Select the data files you're most interested in", then check just "Connections". This makes LinkedIn prepare it in a few minutes instead of up to a day.
+4. Click "Request archive". LinkedIn will confirm your password and start preparing the file.
+5. Wait for the email from LinkedIn (usually a few minutes), then come back to the same page and download the file.
+6. Unzip it. Inside you'll find `Connections.csv`. Keep it somewhere you'll remember, like a new folder for your job search.
 
 You'll also want your CV as a Word or PDF file. Keep it in that same folder.
 
