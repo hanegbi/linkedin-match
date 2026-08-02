@@ -1,45 +1,41 @@
 # linkedin-match
 
 A [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills) that
-matches a job seeker to open roles at companies where they already have a
-LinkedIn contact — a warm intro — and scores fit against their CV. Produces a
-fast keyword-matched CSV/JSON, or a shareable AI-scored HTML report using Sonnet
-subagents. Fully self-contained: no other repo or API key needed.
+matches you to open jobs at companies where you already have a LinkedIn
+connection — a warm intro — and scores each job against your CV. Produces
+either a fast keyword-ranked CSV/JSON, or a shareable AI-scored HTML report
+(via Sonnet subagents). Fully self-contained: no other repo, no API key.
 
-Full behavior is documented in [SKILL.md](SKILL.md) — that's what Claude reads.
+Full behavior lives in [SKILL.md](SKILL.md) — that's what Claude actually reads.
 
 ## Install
-
-This repo is also a Claude Code plugin marketplace (of one plugin), which is the
-recommended way to install a skill that lives in its own repo — it gets you
-update tracking (`/plugin marketplace update`) instead of a plain, un-tracked
-folder copy:
 
 ```
 /plugin marketplace add hanegbi/linkedin-match
 /plugin install linkedin-match@linkedin-match
 ```
 
-Then in a chat run `/linkedin-match`.
+Then just say `/linkedin-match` in a chat.
 
-**Alternative — manual clone (no plugin tracking, but works anywhere):**
+<details>
+<summary>Manual install (no update tracking, but works anywhere)</summary>
 
 ```
-git clone <this-repo-url> ~/.claude/skills/linkedin-match
+git clone https://github.com/hanegbi/linkedin-match.git ~/.claude/skills/linkedin-match
 ```
 
-(Windows: `C:\Users\<you>\.claude\skills\linkedin-match`) Restart Claude Code (or
-start a new session) so it picks up the skill, then run `/linkedin-match`.
+Restart Claude Code, then run `/linkedin-match`.
+</details>
 
-Either way, no separate build step — the skill sets up its own Python venv the
-first time it runs, from a workdir you choose.
+No separate build step — the skill sets up its own Python venv the first time
+it runs, in a workdir you choose.
 
 ## Requirements
 
 - Python 3.13+
-- Internet access (scrapes job postings and reads the public techmap dataset)
+- Internet access (scrapes job postings + reads the public techmap dataset)
 - Claude Code (or another client that supports Agent subagents) for the
-  AI-scored report flow — the keyword-match flow works anywhere
+  AI-scored report; the keyword flow works anywhere
 
 ## License
 
