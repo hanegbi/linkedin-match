@@ -1,4 +1,4 @@
-# linkedin-match
+# LinkedIn Match
 
 This is a Claude Code skill. It looks at your LinkedIn connections and your CV,
 then finds open jobs at companies where you already know someone who works
