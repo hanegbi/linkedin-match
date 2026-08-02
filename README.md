@@ -8,6 +8,12 @@ job is scored against your CV by Claude.
 Everything runs on your own machine. Nothing is sent to a third party, and no
 API key is needed.
 
+Here is what the report looks like. The names shown are made up, everything
+else (companies, roles, fit scores) is real data from an actual run. You can
+open [docs/demo-report.html](docs/demo-report.html) yourself to click around it.
+
+![Example of the generated report](docs/demo-screenshot.png)
+
 ## Step 1: Get your LinkedIn connections file
 
 The skill needs a file called `Connections.csv`, which LinkedIn will generate
