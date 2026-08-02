@@ -1,0 +1,7 @@
+{
+  "name": "linkedin-match",
+  "description": "Match a job seeker to open roles via warm LinkedIn intros, scored against their CV",
+  "version": "1.0.0",
+  "author": { "name": "hanegbi" },
+  "license": "MIT"
+}

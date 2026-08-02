@@ -10,22 +10,28 @@ Full behavior is documented in [SKILL.md](SKILL.md) — that's what Claude reads
 
 ## Install
 
-Clone this repo directly into your skills directory:
+This repo is also a Claude Code plugin marketplace (of one plugin), which is the
+recommended way to install a skill that lives in its own repo — it gets you
+update tracking (`/plugin marketplace update`) instead of a plain, un-tracked
+folder copy:
+
+```
+/plugin marketplace add hanegbi/linkedin-match
+/plugin install linkedin-match@linkedin-match
+```
+
+Then in a chat run `/linkedin-match`.
+
+**Alternative — manual clone (no plugin tracking, but works anywhere):**
 
 ```
 git clone <this-repo-url> ~/.claude/skills/linkedin-match
 ```
 
-(Windows: `C:\Users\<you>\.claude\skills\linkedin-match`)
+(Windows: `C:\Users\<you>\.claude\skills\linkedin-match`) Restart Claude Code (or
+start a new session) so it picks up the skill, then run `/linkedin-match`.
 
-Restart Claude Code (or start a new session) so it picks up the skill, then in
-a chat run:
-
-```
-/linkedin-match
-```
-
-No separate build or install step — the skill sets up its own Python venv the
+Either way, no separate build step — the skill sets up its own Python venv the
 first time it runs, from a workdir you choose.
 
 ## Requirements

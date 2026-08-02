@@ -1,0 +1,12 @@
+{
+  "name": "linkedin-match",
+  "owner": { "name": "hanegbi" },
+  "description": "Match a job seeker to open roles via warm LinkedIn intros, scored against their CV",
+  "plugins": [
+    {
+      "name": "linkedin-match",
+      "source": "./",
+      "description": "Match a job seeker to open roles via warm LinkedIn intros, scored against their CV"
+    }
+  ]
+}
