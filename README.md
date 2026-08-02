@@ -1,8 +1,8 @@
 # linkedin-match
 
 This is a Claude Code skill. It looks at your LinkedIn connections and your CV,
-then finds open jobs at companies where you already know someone — a warm
-intro. It can give you a quick ranked list, or a full HTML report where each
+then finds open jobs at companies where you already know someone who works
+there. It can give you a quick ranked list, or a full HTML report where each
 job is scored against your CV by Claude.
 
 Everything runs on your own machine. Nothing is sent to a third party, and no
