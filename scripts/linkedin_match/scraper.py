@@ -1,5 +1,6 @@
 """Scrape a company's careers page and ATS provider for open positions."""
 
+import html as html_module
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -145,10 +146,66 @@ def extract_embedded_ats(html: str) -> tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-def parse_job_links(base_url: str, html: str) -> list[Job]:
-    """Parse a careers page for job links as a best-effort fallback."""
+_GENERIC_LINK_TEXT = {
+    "view role", "view position", "view job", "view opening", "view details",
+    "apply", "apply now", "learn more", "read more", "see more", "see details",
+    "details", "open position", "open role",
+}
+_TITLE_TAG = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
+_TITLE_FANOUT_WORKERS = 8
+_TITLE_FANOUT_CAP = 30
+
+
+def _clean_page_title(raw: str, company_hint: str) -> Optional[str]:
+    """Extract a job title from a linked page's <title> tag.
+
+    Strips only a trailing "| CompanyName" / "- CompanyName" suffix that matches
+    the actual company name — never a bare split on the first separator, which
+    would mangle real titles like "Senior Backend Engineer - Python".
+    """
+    m = _TITLE_TAG.search(raw)
+    if not m:
+        return None
+    text = html_module.unescape(m.group(1)).strip()
+    if company_hint:
+        text = re.sub(r"\s*[|–—-]\s*" + re.escape(company_hint) + r"\s*$", "", text, flags=re.I).strip()
+    return text or None
+
+
+def _backfill_generic_titles(jobs: list[Job], session: requests.Session, company: str) -> None:
+    """Follow links whose anchor text is a generic CTA and title them from the linked page.
+
+    Many career pages (client-side rendered lists, e.g. Next.js sites) only expose
+    "View Role"/"Apply now" as static anchor text; the real title lives in the linked
+    page's own <title> tag. Bounded and concurrent so one slow/odd page can't stall
+    the whole scrape.
+    """
+    targets = [j for j in jobs if j.url and j.title.strip().casefold() in _GENERIC_LINK_TEXT][:_TITLE_FANOUT_CAP]
+    if not targets:
+        return
+    with ThreadPoolExecutor(max_workers=_TITLE_FANOUT_WORKERS) as pool:
+        futures = {pool.submit(fetch_html, j.url, session, 8): j for j in targets}
+        for future in as_completed(futures):
+            job = futures[future]
+            page = future.result()
+            if not page:
+                continue
+            title = _clean_page_title(page[1], company)
+            if title and title.casefold() != company.casefold():
+                job.title = title
+
+
+def parse_job_links(base_url: str, html: str, session: Optional[requests.Session] = None,
+                     company: str = "") -> list[Job]:
+    """Parse a careers page for job links as a best-effort fallback.
+
+    Excludes links back to the careers page itself (nav links matching the noise
+    regex just as easily as real postings). When ``session`` is given, generic
+    anchor text ("View Role" etc.) is backfilled from each linked page's title.
+    """
     soup = BeautifulSoup(html, "html.parser")
     seen: set[str] = set()
+    base_norm = base_url.rstrip("/")
     jobs: list[Job] = []
     for anchor in soup.find_all("a", href=True):
         href = anchor["href"]
@@ -158,10 +215,12 @@ def parse_job_links(base_url: str, html: str) -> list[Job]:
         if not (_JOB_LINK_HINT.search(href) or _JOB_LINK_HINT.search(title)):
             continue
         absolute = urljoin(base_url, href)
-        if absolute in seen:
+        if absolute in seen or absolute.rstrip("/") == base_norm:
             continue
         seen.add(absolute)
         jobs.append(Job(title=title, url=absolute))
+    if session is not None:
+        _backfill_generic_titles(jobs, session, company)
     return jobs
 
 
@@ -228,7 +287,7 @@ def scrape_company(
                 if embed_jobs:
                     _apply_ats_result(company, embed_source, embed_token, embed_jobs)
                     return company
-            page_jobs = parse_job_links(page[0], page[1])
+            page_jobs = parse_job_links(page[0], page[1], session, company.name)
             if page_jobs:
                 company.source = "careers"
                 company.positions = filter_titles(page_jobs)
