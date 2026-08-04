@@ -141,11 +141,13 @@ main{max-width:1080px;margin:0 auto;padding:22px 24px 60px}
 .ipill{display:inline-flex;align-items:center;gap:7px;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 4px;font-size:13px}
 .iav{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700;font-family:var(--font-display)}
 .iname{font-weight:600}.irole{color:var(--muted);font-size:12px}
-.more-intro{background:none;border:1px dashed var(--line-strong);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit}
+.more-intro{list-style:none;background:none;border:1px dashed var(--line-strong);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit}
+.more-intro::-webkit-details-marker{display:none}
 .more-wrap{position:relative;display:inline-block}
-.more-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:20;background:var(--card);border:1px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow-lg);padding:8px;min-width:220px;max-width:300px;max-height:260px;overflow:auto;flex-direction:column;gap:4px}
-.more-wrap:hover .more-panel,.more-wrap:focus-within .more-panel{display:flex}
-.more-panel .ipill{width:100%}
+.more-wrap[open] .more-intro{border-color:var(--ember)}
+.more-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:20;background:var(--card);border:1px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow-lg);padding:8px;display:flex;flex-direction:column;gap:4px;min-width:320px;max-width:440px;max-height:280px;overflow:auto}
+.more-panel .ipill{width:100%;white-space:normal}
+.more-panel .iname,.more-panel .irole{white-space:normal}
 .co-jobs{border-top:1px solid var(--line);margin-top:4px}
 .job{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
 .job:last-child{border-bottom:none}
@@ -242,7 +244,7 @@ function render(){
     const best=Math.max(...jobs.map(j=>j.score==null?0:j.score));
     const head=c.contacts.slice(0,6).map(pill).join("");
     const extra=c.contacts.slice(6);
-    const more=extra.length?`<span class="more-wrap"><button class="more-intro" type="button">+${extra.length} more</button><span class="more-panel">${extra.map(pill).join("")}</span></span>`:"";
+    const more=extra.length?`<details class="more-wrap"><summary class="more-intro">+${extra.length} more</summary><div class="more-panel">${extra.map(pill).join("")}</div></details>`:"";
     return `<section class="co"><button class="co-hide" data-hidec="${esc(c.company)}" title="Hide company">${EYE}</button>
       <div class="co-head">
       <div><h3 class="co-name">${esc(c.company)}</h3><span class="co-stat">${jobs.length} role${jobs.length===1?"":"s"} \\u00b7 best fit <b>${best}</b></span></div>
@@ -268,6 +270,9 @@ el("xwords").addEventListener("input",()=>localStorage.setItem(KEY+"_xwords",el(
 el("locpanel").addEventListener("change",e=>{const cb=e.target.closest('input[type=checkbox]');if(!cb)return;
   cb.checked?locSel.add(cb.value):locSel.delete(cb.value);store("loc",locSel);render();});
 ["q","min","xwords","likedonly"].forEach(id=>el(id).addEventListener("input",render));
+document.addEventListener("click",e=>{
+  document.querySelectorAll("details.more-wrap[open]").forEach(d=>{if(!d.contains(e.target))d.removeAttribute("open");});
+});
 render();
 </script>
 </body></html>"""
