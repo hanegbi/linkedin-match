@@ -2,11 +2,7 @@
 
 import html as html_module
 import logging
-import os
 import re
-import subprocess
-import sys
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 from urllib.parse import urljoin, urlparse
@@ -199,90 +195,6 @@ def _backfill_generic_titles(jobs: list[Job], session: requests.Session, company
                 job.title = title
 
 
-_IFRAME_HINT = re.compile(
-    r"job|career|ats|hiring|position|greenhouse|lever|ashby|workable|comeet|"
-    r"smartrecruiters|workday|teamtailor|personio|breezy|recruitee|jazzhr|workhq",
-    re.I,
-)
-
-
-_playwright_ready: Optional[bool] = None
-_playwright_lock = threading.Lock()
-
-
-def _ensure_playwright() -> bool:
-    """Lazily install Playwright + its Chromium binary on first need, once per process.
-
-    Nothing is installed until a company actually reaches the render-fallback stage —
-    most companies resolve via ATS or static parsing and never trigger this. Thread-
-    safe (multiple scrape workers can hit the fallback around the same time) and
-    cheap after the first check: later calls just return the cached result.
-    """
-    global _playwright_ready
-    if _playwright_ready is not None:
-        return _playwright_ready
-    with _playwright_lock:
-        if _playwright_ready is not None:
-            return _playwright_ready
-        try:
-            from playwright.sync_api import sync_playwright
-            with sync_playwright() as p:
-                if not os.path.exists(p.chromium.executable_path):
-                    raise RuntimeError("chromium binary not installed")
-            _playwright_ready = True
-            return True
-        except Exception:
-            pass
-        logger.info("Installing headless-browser support for hard-to-scrape career pages (one-time, ~300MB)…")
-        try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "playwright"], check=True)
-            subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
-            _playwright_ready = True
-            logger.info("Headless-browser support installed.")
-        except Exception as error:
-            logger.warning("Could not install headless-browser support (%s); skipping the render fallback.", error)
-            _playwright_ready = False
-        return _playwright_ready
-
-
-def render_with_browser(url: str, timeout_ms: int = 20000) -> list[str]:
-    """Render a URL with a real headless browser; return [page_html, *job-like iframe htmls].
-
-    Last-resort fallback when a plain HTTP GET finds no jobs and no ATS: many career
-    pages render their listing client-side (nothing in the static HTML to parse), or
-    embed it via a third-party ATS iframe a plain GET can't see into. Slow (a real
-    browser launch per call), so this only ever runs after every faster option has
-    already failed. Each call launches its own browser instance, so it's safe to call
-    from multiple scraper worker threads concurrently.
-    """
-    if not _ensure_playwright():
-        return []
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        return []
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            try:
-                page = browser.new_page()
-                page.goto(url, timeout=timeout_ms, wait_until="networkidle")
-                htmls = [page.content()]
-                for frame in page.frames:
-                    if frame is page.main_frame or not _IFRAME_HINT.search(frame.url):
-                        continue
-                    try:
-                        htmls.append(frame.content())
-                    except Exception:
-                        pass
-                return htmls
-            finally:
-                browser.close()
-    except Exception as error:
-        logger.debug("headless render failed for %s: %s", url, error)
-        return []
-
-
 _MIN_TITLE_LEN = 9
 _COUNT_BADGE = re.compile(r"\(\s*\d+\s*\)\s*$")
 _SKIP_LINK = re.compile(r"^skip\b", re.I)
@@ -417,20 +329,6 @@ def scrape_company(
             if page_jobs:
                 company.source = "careers"
                 company.positions = filter_titles(page_jobs)
-                company.status = "ok"
-                return company
-
-        for rendered_html in render_with_browser(company.careers_url):
-            embed_source, embed_token = extract_embedded_ats(rendered_html)
-            if embed_source:
-                embed_jobs = _try_ats(embed_source, embed_token, session)
-                if embed_jobs:
-                    _apply_ats_result(company, embed_source, embed_token, embed_jobs)
-                    return company
-            rendered_jobs = parse_job_links(company.careers_url, rendered_html, session, company.name)
-            if rendered_jobs:
-                company.source = "careers-rendered"
-                company.positions = filter_titles(rendered_jobs)
                 company.status = "ok"
                 return company
 

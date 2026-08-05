@@ -1,7 +1,7 @@
 ---
 name: linkedin-match
 description: "Matches a job seeker to open roles at companies where they already have a LinkedIn contact (a warm intro), scores fit against their CV, and produces a ranked, contact-backed report — a fast keyword-matched CSV/JSON or a shareable AI-scored HTML page. Use whenever the user wants to job-hunt through their LinkedIn network, mentions a LinkedIn 'Connections.csv' export, asks to match their CV/resume against open jobs, wants to find warm intros at companies that are hiring, or wants a report of jobs they're a good fit for through people they know — even if they haven't uploaded the CSV or CV yet, since the skill asks for them. Covers any field: engineering, data, product, design, marketing, sales, and more."
-compatibility: "Requires Python 3.13+ and internet access (to scrape job postings). Fully self-contained — no other repo needed. The AI-scored report flow dispatches Agent subagents with model:sonnet, so it needs Claude Code (or another client that supports subagents); the keyword flow works anywhere."
+compatibility: "Requires Python 3.13+ and internet access (to scrape job postings). Fully self-contained — no other repo needed. The AI-scored report flow dispatches Agent subagents with model:sonnet, so it needs Claude Code (or another client that supports subagents); the keyword flow works anywhere. Recovering a JS-rendered career page (references/render-recovery.md) additionally needs the Playwright MCP server — optional, only for that one troubleshooting path, never required for the main flow."
 license: MIT. LICENSE.txt has complete terms.
 metadata:
   version: "1.0.0"

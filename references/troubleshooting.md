@@ -20,9 +20,17 @@ CSV). Solution: verify `report_args.json`'s `csv` path points at a real LinkedIn
 export with a `Company` column, and that step 3 actually ran successfully first.
 
 **A specific company shows no jobs even though it's clearly hiring.**
-Cause: its career page is JS-rendered client-side, so scraping can't see the
-listings. Solution: pin the exact careers URL in `verified_domains.json` (see
-Notes in SKILL.md) and re-run `hybrid --all-jobs --force`.
+Two possible causes, check in order:
+1. Its careers URL never resolved at all (`status: skipped`, no `careers_url`).
+   Verify the *correct* domain yourself (automatic resolution can lock onto an
+   unrelated site with a similar name), then pin it in `verified_domains.json`
+   (see Notes in SKILL.md) and re-run `hybrid --all-jobs --force`.
+2. It has a real `careers_url` but the page is JS-rendered client-side, so a
+   plain HTTP fetch sees no jobs (`status: needs_manual`). If the Playwright MCP
+   tool is available, render the page yourself and recover it —
+   [render-recovery.md](render-recovery.md) has the exact steps. This is a
+   manual, on-request recovery for one company at a time, not something to run
+   automatically over every unresolved company.
 
 **Sonnet subagent scoring returns malformed or missing scores for a batch.**
 Cause: the subagent didn't follow the exact JSON-array-only output format from
