@@ -2,7 +2,11 @@
 
 import html as html_module
 import logging
+import os
 import re
+import subprocess
+import sys
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 from urllib.parse import urljoin, urlparse
@@ -202,17 +206,57 @@ _IFRAME_HINT = re.compile(
 )
 
 
+_playwright_ready: Optional[bool] = None
+_playwright_lock = threading.Lock()
+
+
+def _ensure_playwright() -> bool:
+    """Lazily install Playwright + its Chromium binary on first need, once per process.
+
+    Nothing is installed until a company actually reaches the render-fallback stage —
+    most companies resolve via ATS or static parsing and never trigger this. Thread-
+    safe (multiple scrape workers can hit the fallback around the same time) and
+    cheap after the first check: later calls just return the cached result.
+    """
+    global _playwright_ready
+    if _playwright_ready is not None:
+        return _playwright_ready
+    with _playwright_lock:
+        if _playwright_ready is not None:
+            return _playwright_ready
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as p:
+                if not os.path.exists(p.chromium.executable_path):
+                    raise RuntimeError("chromium binary not installed")
+            _playwright_ready = True
+            return True
+        except Exception:
+            pass
+        logger.info("Installing headless-browser support for hard-to-scrape career pages (one-time, ~300MB)…")
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "playwright"], check=True)
+            subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+            _playwright_ready = True
+            logger.info("Headless-browser support installed.")
+        except Exception as error:
+            logger.warning("Could not install headless-browser support (%s); skipping the render fallback.", error)
+            _playwright_ready = False
+        return _playwright_ready
+
+
 def render_with_browser(url: str, timeout_ms: int = 20000) -> list[str]:
     """Render a URL with a real headless browser; return [page_html, *job-like iframe htmls].
 
     Last-resort fallback when a plain HTTP GET finds no jobs and no ATS: many career
     pages render their listing client-side (nothing in the static HTML to parse), or
-    embed it via a third-party ATS iframe a plain GET can't see into. Each call
-    launches its own browser instance, so it's safe to call from multiple scraper
-    worker threads concurrently. Returns [] on any failure — including Playwright not
-    being installed, which is an optional dependency — so callers can treat this as
-    purely additive, never required.
+    embed it via a third-party ATS iframe a plain GET can't see into. Slow (a real
+    browser launch per call), so this only ever runs after every faster option has
+    already failed. Each call launches its own browser instance, so it's safe to call
+    from multiple scraper worker threads concurrently.
     """
+    if not _ensure_playwright():
+        return []
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -239,22 +283,60 @@ def render_with_browser(url: str, timeout_ms: int = 20000) -> list[str]:
         return []
 
 
+_MIN_TITLE_LEN = 9
+_COUNT_BADGE = re.compile(r"\(\s*\d+\s*\)\s*$")
+_SKIP_LINK = re.compile(r"^skip\b", re.I)
+_LOGIN_LINK = re.compile(r"\b(log\s*in|log\s*back\s*in|sign\s*in)\b", re.I)
+_SOCIAL_ICON = re.compile(r"\b(facebook|instagram|twitter|linkedin|youtube|tiktok)\s+(social\s+)?icon\b", re.I)
+
+
+def _looks_like_chrome_text(title: str) -> bool:
+    """Reject generic career-page UI chrome that isn't an individual posting.
+
+    Filter/category badges ("All Jobs (227)"), accessibility skip-links, login CTAs,
+    and social-media icon links are common, recurring patterns across many corporate
+    career portals — not company-specific — and none are caught by the nav/header/
+    footer or length checks alone.
+    """
+    return bool(
+        _COUNT_BADGE.search(title)
+        or _SKIP_LINK.match(title)
+        or _LOGIN_LINK.search(title)
+        or _SOCIAL_ICON.search(title)
+    )
+
+
+def _in_site_chrome(anchor) -> bool:
+    """Whether an anchor sits inside <nav>/<header>/<footer> — site-wide chrome, not content.
+
+    Matters most for rendered pages (fully-loaded DOM includes the whole site's nav,
+    not just the careers section), where a "Sign in" or "Careers" nav link matches the
+    loose job-link regex just as easily as a real posting.
+    """
+    return anchor.find_parent(["nav", "header", "footer"]) is not None
+
+
 def parse_job_links(base_url: str, html: str, session: Optional[requests.Session] = None,
                      company: str = "") -> list[Job]:
     """Parse a careers page for job links as a best-effort fallback.
 
-    Excludes links back to the careers page itself (nav links matching the noise
-    regex just as easily as real postings). When ``session`` is given, generic
-    anchor text ("View Role" etc.) is backfilled from each linked page's title.
+    Excludes links back to the careers page itself and anything sitting in site-wide
+    nav/header/footer chrome (nav links match the loose job-link regex just as easily
+    as real postings — a "Sign in" or "עברית" language switcher is not a job). When
+    ``session`` is given, generic anchor text ("View Role" etc.) is backfilled from
+    each linked page's title. A final short-title filter (language-agnostic, unlike a
+    denylist) drops whatever chrome text still slips through either check.
     """
     soup = BeautifulSoup(html, "html.parser")
     seen: set[str] = set()
     base_norm = base_url.rstrip("/")
     jobs: list[Job] = []
     for anchor in soup.find_all("a", href=True):
+        if _in_site_chrome(anchor):
+            continue
         href = anchor["href"]
-        title = " ".join(anchor.get_text().split())
-        if not title or len(title) < 3:
+        title = " ".join(anchor.get_text(separator=" ").split())
+        if not title or len(title) < 3 or _looks_like_chrome_text(title):
             continue
         if not (_JOB_LINK_HINT.search(href) or _JOB_LINK_HINT.search(title)):
             continue
@@ -265,7 +347,7 @@ def parse_job_links(base_url: str, html: str, session: Optional[requests.Session
         jobs.append(Job(title=title, url=absolute))
     if session is not None:
         _backfill_generic_titles(jobs, session, company)
-    return jobs
+    return [j for j in jobs if len(j.title) >= _MIN_TITLE_LEN and not _looks_like_chrome_text(j.title)]
 
 
 def filter_titles(jobs: list[Job]) -> list[Job]:
