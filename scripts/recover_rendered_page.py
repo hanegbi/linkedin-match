@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import linkedin_match.matching as matching
 from linkedin_match.cache import company_to_entry, load_cache, save_cache, utc_now_iso
 from linkedin_match.fetchers import make_session
 from linkedin_match.models import Company
@@ -30,6 +31,13 @@ from linkedin_match.scraper import (
     filter_titles,
     parse_job_links,
 )
+
+# Same reasoning as app.py's --all-jobs: this script feeds the AI-report flow,
+# which does its own per-candidate title matching later in report_prep.py, so
+# the scrape-time engineering-keyword filter (on by default) must stay off here
+# too — otherwise a recovered non-engineering role could be silently dropped
+# before the user's actual target titles ever get a chance to see it.
+matching.FILTER_TITLES = False
 
 
 def main() -> None:
